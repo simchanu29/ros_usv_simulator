@@ -1,0 +1,23 @@
+help:
+  structure: 'vehicule->component->parent(caracs)->child(caracs)->child(caracs)...'
+
+vehicule:
+
+  propulsion:
+
+    left:
+      position:
+        x: 0.0
+        y: 0.1  # + = gauche
+      maxPower: 50  # Watt
+      gain: 1*0.15  # Wheeled robot
+
+    right:
+      position:
+        x: 0.0
+        y: -0.1
+      maxPower: 50  # Watt
+      gain: 1*0.15  # Wheeled robot
+
+
+# Utiliser Xacro pour paramétrer les launchfiles

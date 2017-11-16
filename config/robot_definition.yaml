@@ -1,0 +1,104 @@
+# Config du simulateur
+
+command_types:
+
+  'servo180':
+    range: [-90,90]
+
+  'servo90':
+    range: [-45,45]
+
+  'motor100':
+    range: [-100,100]
+
+device_types:
+
+  motor_bprime:
+    node_type: 'simu_dynamique_thruster.py'
+    motor_type: 'wheel' # Or propeller
+    max_speed: 10
+    max_force: 10
+    orientable: False
+    pre_actuator: True
+
+  imu_razor:
+    node_type: 'simu_imu.py'
+    baudrate: 57600
+
+  gps_globalsat_usb:
+    node_type: 'simu_gps.py'
+    baudrate: 9600
+
+  pwm_board:
+    node_type: 'simu_pwm_board.py'
+    output_number: 24
+
+  not_simulated: None
+
+simulation:
+  dt: 0.1
+  dt_reel: 0.1
+  duration: 10
+
+#==========================================================
+# Config du robot
+
+robot:
+
+  characteristics:
+    axis_offset: [0,0,0]
+    length: 0.2
+    width: 0.2
+    weight: 1
+
+  actuators:
+
+    motor_left:
+      type: 'motor_bprime'
+      command:
+        type: 'motor100'
+        pwm:
+          pin: 10
+      orientation: 0
+      position:
+        x: 0.0
+        y: -0.1
+        z: 0.0
+
+    motor_right:
+      type: 'motor_bprime'
+      command:
+        type: 'motor100'
+        pwm:
+          pin: 11
+      orientation: 0
+      position:
+        x: 0.0
+        y: 0.1
+        z: 0.0
+
+    servo_cam_azimuth:
+      type: 'not_simulated'
+      command:
+        type: 'servo90'
+        pwm:
+          pin: 1
+
+    servo_cam_declinaison:
+      type: 'not_simulated'
+      command:
+        type: 'servo90'
+        pwm:
+          pin: 2
+
+  pre_actuators:
+
+    adafruit_pwm_hat:
+      type: 'pwm_board'
+
+  sensors:
+    imu:
+      type: 'imu_razor'
+    gps:
+      type: 'gps_globalsat_usb'
+
