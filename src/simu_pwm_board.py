@@ -23,7 +23,7 @@ from std_msgs.msg import Int16
 class PwmOutput():
     def __init__(self, pin):
         # Define publisher
-        self.pub = rospy.Publisher('pwm_out_'+pin, Int16, queue_size=1)
+        self.pub = rospy.Publisher('pwm_out_'+str(pin), Int16, queue_size=1)
 
     def publish(self, pwm):
         self.pub.publish(pwm)

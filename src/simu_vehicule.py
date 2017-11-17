@@ -5,11 +5,12 @@
 
 # S'abonne aux forces et moments sur les objet et les simule
 # Renvoie une pose et l'etat du monde
-
+# IMPORTANT, les stamped sont important pour Rviz
 
 import rospy
 import numpy as np
-from geometry_msgs.msg import Wrench
+from std_msgs.msg import Float64
+from geometry_msgs.msg import WrenchStamped
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import AccelStamped
@@ -57,82 +58,99 @@ class Kayak():
 
         self.pos = np.array([x, y, 0.0])  # m
         self.v = np.array([vx, vy, 0.0])  # m/s
-        self.vAng = 0.0  # rad/s
+        self.v_yaw = 0.0  # rad/s
         self.yaw = yaw  # rad
 
 class Buggy():
     """
     Ground vehicule
     """
-    def __init__(self, mass=2.0, length=0.3, width=0.2, height=0.2,
-                 x=0.0, y=0.0, yaw=0.0, vx=0.0, vy=0.0):
-        frictionCoeff = 1.0
+    def __init__(self, config_vehicule, config_simu, actuators, environnement):
+        print 'config_vehicule :', config_vehicule
+        print 'config_simu :', config_simu
+        print 'actuators :', actuators
+        print 'environnement :', environnement
+        massDensityOfFluid = environnement['fluid_mass_density']
+        dragCoeff = 0.5
+        dragAngCoeff = 0.3
         minForceToMove = 2.0
         electromechanicBrakingTorque = 1.0
 
-        self.mass = mass  # kg
-        self.length = length  # m
-        self.width = width  # m
-        self.angularMass = (mass * (length * width) ** 2) / 12.0
+        # Init dans le repere global
+        self.x = config_simu['position']['x']
+        self.y = config_simu['position']['y']
+        self.z = config_simu['position']['z']
+        self.roll = config_simu['position']['roll']
+        self.pitch = config_simu['position']['pitch']
+        self.yaw = config_simu['position']['yaw']
+        self.v_x = config_simu['speed']['v_x']
+        self.v_y = config_simu['speed']['v_y']
+        self.v_z = config_simu['speed']['v_z']
+        self.v_roll = config_simu['speed']['v_roll']
+        self.v_pitch = config_simu['speed']['v_pitch']
+        self.v_yaw = config_simu['speed']['v_yaw']
 
-        # On a une commande char avec 4 roues, donc une force de friction par roue
-        self.drag = 4*frictionCoeff*self.vx 0.5 * height / 2.0 * width
-        self.dragAng = 0.5 * height / 2.0 * length * length / 2.0
+        self.mass = config_vehicule['mass']  # kg
+        self.length = config_vehicule['length']  # m
+        self.width = config_vehicule['width']  # m
+        self.height = config_vehicule['height']  # m
 
-        self.pos = np.array([x, y, 0.0])  # m
-        self.v = np.array([vx, vy, 0.0])  # m/s
-        self.vAng = 0.0  # rad/s
-        self.yaw = yaw  # rad
+        # Matric d'inertie simplifiée
+        self.angularMass = (self.mass * (self.length * self.width) ** 2) / 12.0 # Parallepipède rectangle
+
+        # On a une commande char avec plusieurs moteurs, donc une force de friction par moteur
+        # drag = résistance de l'air + frottement des roues
+        # TODO generaliser les equations avec des matrices
+        self.drag = 0.5 * massDensityOfFluid * self.height * self.width * dragCoeff
+        self.dragAng = 0.5 * massDensityOfFluid * self.height * self.length / 2.0 * dragAngCoeff * self.length / 4.0
+        for motor in actuators:
+            if actuators[motor]['type'] != 'None':
+                print 'motor :', motor
+                dist2center = (actuators[motor]['position']['x']**2
+                               + actuators[motor]['position']['y']**2
+                               + actuators[motor]['position']['z']**2)**0.5
+
+                # Force résistante à l'avancement engendré par l'applatissement des roues sur le sol.
+                self.drag += self.mass*actuators[motor]['type']['kinetic_friction_coeff']*9.81
+                self.dragAng += self.mass*actuators[motor]['type']['kinetic_friction_coeff']*9.81 * dist2center
+
+        self.pos = np.array([self.x, self.y, 0.0])  # m
+        self.v = np.array([self.v_x, self.v_y, 0.0])  # m/s
 
 class SimVehicule():
     def __init__(self):
 
-        self.simuTime = 0
-        self.dt = 0.1
-
-        self.vehicule = Vehicule()
+        self.vehicule = Buggy(config['characteristics'],
+                              config['simulated_characteristics'],
+                              config['actuators'],
+                              environnement['environnement'])
 
         # Definitions des messages
         self.msgPose = Msg(PoseStamped)
-        self.msgPose.pose.position.z = 0.0
         self.msgTwist = Msg(TwistStamped)
-        self.msgTwist.twist.linear.z = 0.0
-        self.msgTwist.twist.angular.x = 0.0
-        self.msgTwist.twist.angular.y = 0.0
         self.msgAccel = Msg(AccelStamped)
 
-        self.constraints = [Wrench(), Wrench()]
+        self.constraints = {}
 
-        self.pubPose = rospy.Publisher('pose_real', PoseStamped, queue_size=1)
-        self.pubTwist = rospy.Publisher('twist_real', TwistStamped, queue_size=1)
-        self.pubAcc = rospy.Publisher('acc_real', AccelStamped, queue_size=1)
+    def update_wrench(self, msg, motor):
+        self.constraints[motor] = msg
 
-        self.subConstraint0 = rospy.Subscriber('avant/simu_force', Wrench, self.update_constraint_0)
-        self.subConstraint1 = rospy.Subscriber('arriere/simu_force', Wrench, self.update_constraint_1)
+    def update_dt(self, msg):
+        simu.process(msg.data)
 
-    def update_constraint_0(self, msg):
-        self.constraints[0].force = msg.force
-        self.constraints[0].torque = msg.torque
-
-    def update_constraint_1(self, msg):
-        self.constraints[1].force = msg.force
-        self.constraints[1].torque = msg.torque
-
-    def process(self):
-        # Mise à jour du temps
-        self.simuTime += self.dt
+    def process(self, dt):
 
         # Somme des contraintes
         sumForce = np.array([0, 0, 0])
         sumMoment = np.array([0, 0, 0])
         for constraint in self.constraints:
-            # Contraintes dans le repère de l'USV
-            sumForce[0] += constraint.force.x
-            sumForce[1] += constraint.force.y
-            sumForce[2] += constraint.force.z
-            sumMoment[0] += constraint.torque.x
-            sumMoment[1] += constraint.torque.y
-            sumMoment[2] += constraint.torque.z
+            # Contraintes dans le repère du vehicule
+            sumForce[0] += self.constraints[constraint].wrench.force.x
+            sumForce[1] += self.constraints[constraint].wrench.force.y
+            sumForce[2] += self.constraints[constraint].wrench.force.z
+            sumMoment[0] += self.constraints[constraint].wrench.torque.x
+            sumMoment[1] += self.constraints[constraint].wrench.torque.y
+            sumMoment[2] += self.constraints[constraint].wrench.torque.z
 
         # Rotation des contraintes dans le repère global
         rotAngle = self.vehicule.yaw
@@ -142,33 +160,33 @@ class SimVehicule():
         sumForce = Rot.dot(sumForce)
 
         dragForce = self.vehicule.drag * self.vehicule.v ** 2 * np.sign(self.vehicule.v)
-        dragForceAng = 2.0 * self.vehicule.dragAng * self.vehicule.vAng ** 2 * np.sign(self.vehicule.vAng)
+        dragForceAng = 2.0 * self.vehicule.dragAng * self.vehicule.v_yaw ** 2 * np.sign(self.vehicule.v_yaw)
 
         # PFD : Accéleration
         linAcc = (sumForce - dragForce) / self.vehicule.mass
         angAcc = (sumMoment[2] - dragForceAng) / self.vehicule.angularMass  # On restreint la matrice d'inertie à l'axe Z
 
         rospy.loginfo("_____")
-        rospy.loginfo("vAng         = %s", self.vehicule.vAng)
+        rospy.loginfo("v_yaw         = %s", self.vehicule.v_yaw)
         rospy.loginfo("dragForceAng = %s", dragForceAng)
         rospy.loginfo("dragAng       = %s", self.vehicule.dragAng)
         rospy.loginfo("angAcc       = %s", angAcc)
 
         # Euler : Vitesse
-        self.vehicule.v = self.vehicule.v + self.dt * linAcc
-        self.vehicule.vAng = self.vehicule.vAng + self.dt * angAcc
+        self.vehicule.v = self.vehicule.v + dt * linAcc
+        self.vehicule.v_yaw = self.vehicule.v_yaw + dt * angAcc
 
         # test
         dragForce = self.vehicule.drag * self.vehicule.v ** 2 * np.sign(self.vehicule.v)
-        dragForceAng = 2.0 * self.vehicule.dragAng * self.vehicule.vAng ** 2 * np.sign(self.vehicule.vAng)
+        dragForceAng = 2.0 * self.vehicule.dragAng * self.vehicule.v_yaw ** 2 * np.sign(self.vehicule.v_yaw)
         linAcc = (sumForce - dragForce) / self.vehicule.mass
         angAcc = (sumMoment[2] - dragForceAng) / self.vehicule.angularMass  # On se restreint à l'axe Z
-        self.vehicule.v = self.vehicule.v + self.dt * linAcc
-        self.vehicule.vAng = self.vehicule.vAng + self.dt * angAcc
+        self.vehicule.v = self.vehicule.v + dt * linAcc
+        self.vehicule.v_yaw = self.vehicule.v_yaw + dt * angAcc
 
         # Euler : Position
-        self.vehicule.pos = self.vehicule.pos + self.dt * self.vehicule.v
-        self.vehicule.yaw = self.vehicule.yaw + self.dt * self.vehicule.vAng
+        self.vehicule.pos = self.vehicule.pos + dt * self.vehicule.v
+        self.vehicule.yaw = self.vehicule.yaw + dt * self.vehicule.v_yaw
 
         # Remplissage des messages
         self.msgPose.pose.position.x = self.vehicule.pos[0]  # m
@@ -176,12 +194,12 @@ class SimVehicule():
         self.msgPose.pose.orientation = Quaternion(*tf.transformations.quaternion_from_euler(0.0, 0.0, self.vehicule.yaw))
         self.msgTwist.twist.linear.x = self.vehicule.v[0]
         self.msgTwist.twist.linear.y = self.vehicule.v[1]
-        self.msgTwist.twist.angular.z = self.vehicule.vAng  # rad/s
+        self.msgTwist.twist.angular.z = self.vehicule.v_yaw  # rad/s
         self.msgAccel.accel.linear.x = linAcc[0]
         self.msgAccel.accel.linear.y = linAcc[1]
         self.msgAccel.accel.angular.z = angAcc
 
-        rospy.loginfo("vAng         = %s", self.vehicule.vAng)
+        rospy.loginfo("v_yaw         = %s", self.vehicule.v_yaw)
         rospy.loginfo("yaw          = %s", self.vehicule.yaw)
         rospy.loginfo("dragForce    = %s", dragForce)
         rospy.loginfo("linAcc       = %s", linAcc)
@@ -189,28 +207,42 @@ class SimVehicule():
         rospy.loginfo("pos          = %s", self.vehicule.pos)
 
         # Remplissage des header pour la simulation
-        secs = np.fix(self.simuTime)
-        nsecs = self.simuTime - np.fix(self.simuTime)
-        self.msgPose.fill_header(secs, nsecs)
-        self.msgTwist.fill_header(secs, nsecs)
-        self.msgAccel.fill_header(secs, nsecs)
+        self.msgPose.fill_header(frame_id='map')
+        self.msgTwist.fill_header(frame_id='map')
+        self.msgAccel.fill_header(frame_id='map')
 
         # Publication
-        self.pubPose.publish(self.msgPose)
-        self.pubTwist.publish(self.msgTwist)
-        self.pubAcc.publish(self.msgAccel)
+        pub_pose.publish(self.msgPose)
+        pub_twist.publish(self.msgTwist)
+        pub_acc.publish(self.msgAccel)
 
 
 if __name__ == '__main__':
-    rospy.init_node('simu_kayak')
-    r = rospy.Rate(2)
+    rospy.init_node('simu_vehicule')
 
+    config = rospy.get_param('robot')
+    environnement = rospy.get_param('simulation')
+    device_types = rospy.get_param('device_types')
+
+    # Remplissage des donnees du type
+    for motor in config['actuators']:
+        config['actuators'][motor]['type'] = device_types[config['actuators'][motor]['type']]
     simu = SimVehicule()
 
     # pub sub
-    pub_pose =
-    pub_twist =
-    pub_acc =
+    pub_pose = rospy.Publisher('pose_real', PoseStamped, queue_size=1)
+    pub_twist = rospy.Publisher('twist_real', TwistStamped, queue_size=1)
+    pub_acc = rospy.Publisher('accel_real', AccelStamped, queue_size=1)
+    for motor in config['actuators']:
+        if config['actuators'][motor]['type'] != 'None':
 
+            # creation des callbacks
+            def update_wrench(msg):
+                simu.update_wrench(msg, motor)
+
+            # sub motor
+            sub_motor = rospy.Subscriber('force_'+motor, WrenchStamped, update_wrench)
+
+    sub_dt = rospy.Subscriber('dt', Float64, simu.update_dt)
 
     rospy.spin()

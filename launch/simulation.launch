@@ -6,5 +6,7 @@
 
     <!-- Pour modifier le lancement des nodes il faut modifier la définition du robot -->
     <node pkg="ros_2d_simulator" type="launch_simulation.py" name="sim_launcher" output="screen"/>
+    <node pkg="ros_2d_simulator" type="simu_vehicule.py" name="sim_vehicule" output="screen"/>
+    <node pkg="ros_2d_simulator" type="simu_time.py" name="sim_time" output="screen"/>
 
 </launch>

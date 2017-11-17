@@ -10,7 +10,7 @@
 import rospy
 import numpy as np
 from std_msgs.msg import Int16
-from geometry_msgs.msg import Wrench
+from geometry_msgs.msg import WrenchStamped
 from geometry_msgs.msg import Quaternion
 import tf
 
@@ -56,7 +56,7 @@ class SimDynMot():
         self.orientation.z = quaternion[2]
         self.orientation.w = quaternion[3]
 
-        self.wrenchThruster = Wrench()
+        self.wrenchThruster = WrenchStamped()
 
     def update_orientation(self, msg):
         self.orientation = msg
@@ -68,27 +68,32 @@ class SimDynMot():
     def process_force(self, commande):
         # La commande est de -1 à 1
         # Pour les moteurs on est habituellement sur une courbe quadratique de puissance
-        thrust = self.config['type']['max_thrust']*commande*commande
+        thrust = self.config['type']['max_force']*commande*commande
 
         return thrust
 
     def process(self):
         cmd_thrust = (self.cmd_thrust-1500)/500.0
-        yaw, pitch, roll = tf.transformations.euler_from_quaternion(self.orientation)
+        print 'self.orientation:', self.orientation, self.orientation.__class__
+        quaternion = (self.orientation.x, self.orientation.y, self.orientation.z, self.orientation.w)
+        euler = tf.transformations.euler_from_quaternion(quaternion)
+        yaw = euler[0]
+        pitch = euler[1]
+        roll = euler[2]
         thrust = self.process_force(cmd_thrust)
 
-        self.wrenchThruster.force.x = thrust * np.cos(yaw)
-        self.wrenchThruster.force.y = thrust * np.sin(yaw)
-        self.wrenchThruster.force.z = 0
+        self.wrenchThruster.wrench.force.x = thrust * np.cos(yaw)
+        self.wrenchThruster.wrench.force.y = thrust * np.sin(yaw)
+        self.wrenchThruster.wrench.force.z = 0
 
         # la force s'applique en (x,y) avec un angle a par rapport au cap du vehicule.
         # x est la coordonnee le long du vehicule
-        self.wrenchThruster.torque.z = self.wrenchThruster.force.y*self.config['position']['x'] \
-                                       + self.wrenchThruster.force.x*self.config['position']['y']
-        self.wrenchThruster.torque.x = self.wrenchThruster.force.z*self.config['position']['y'] \
-                                       + self.wrenchThruster.force.y*self.config['position']['z']
-        self.wrenchThruster.torque.y = self.wrenchThruster.force.z*self.config['position']['x'] \
-                                       + self.wrenchThruster.force.x*self.config['position']['z']
+        self.wrenchThruster.wrench.torque.z = self.wrenchThruster.wrench.force.y*self.config['position']['x'] \
+                                       + self.wrenchThruster.wrench.force.x*self.config['position']['y']
+        self.wrenchThruster.wrench.torque.x = self.wrenchThruster.wrench.force.z*self.config['position']['y'] \
+                                       + self.wrenchThruster.wrench.force.y*self.config['position']['z']
+        self.wrenchThruster.wrench.torque.y = self.wrenchThruster.wrench.force.z*self.config['position']['x'] \
+                                       + self.wrenchThruster.wrench.force.x*self.config['position']['z']
 
         pub_force.publish(self.wrenchThruster)
 
@@ -123,7 +128,7 @@ if __name__ == '__main__':
 
     # sub pub
     sub_yaw = rospy.Subscriber('orientation', Quaternion, simu.update_orientation) # Eventuellement la node qui est l'actionneur placé avant le moteur a son propre temps. Ou sinon il y a une node qui donne le temps et qui synchronise les simulation (mieux)
-    sub_pwm_cmd = rospy.Subscriber('pwm_out_'+pin, Int16, simu.update_cmd_thrust)
-    pub_force = rospy.Publisher('force', Wrench, queue_size=1)
+    sub_pwm_cmd = rospy.Subscriber('pwm_out_'+str(pin), Int16, simu.update_cmd_thrust)
+    pub_force = rospy.Publisher('force_'+node_name[6:], WrenchStamped, queue_size=1)
 
     rospy.spin()

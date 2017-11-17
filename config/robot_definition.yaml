@@ -18,6 +18,7 @@ device_types:
     motor_type: 'wheel' # Or propeller
     max_speed: 10
     max_force: 10
+    kinetic_friction_coeff: 0.004
     orientable: False
     pre_actuator: True
 
@@ -37,19 +38,39 @@ device_types:
 
 simulation:
   dt: 0.1
-  dt_reel: 0.1
-  duration: 10
+  dt_reel: 1
+  duration: 100000
+  environnement:
+    fluid_mass_density: 1.225 # kg/m3
 
 #==========================================================
 # Config du robot
 
 robot:
 
+  simulated_characteristics:
+    position:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.0
+    speed:
+      v_x: 0.0
+      v_y: 0.0
+      v_z: 0.0
+      v_roll: 0.0
+      v_pitch: 0.0
+      v_yaw: 0.0
+
   characteristics:
     axis_offset: [0,0,0]
     length: 0.2
     width: 0.2
-    weight: 1
+    height: 0.08
+    mass: 1.0 # kg
+    # TODO : intertial_matrix: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
   actuators:
 
@@ -101,4 +122,3 @@ robot:
       type: 'imu_razor'
     gps:
       type: 'gps_globalsat_usb'
-

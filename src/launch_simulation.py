@@ -15,13 +15,14 @@ device_types = rospy.get_param('device_types')
 launch = roslaunch.scriptapi.ROSLaunch()
 launch.start()
 param_server = rosparam.get_param_server()
-output_node_name = 'simu_adafruit_pwm_hat'
+output_node_name = 'simu_motor_left'
 output = None
 process_dic = {}
 # device_type_names = ['sensors', 'actuators', 'pre_actuators']
-device_type_names = ['pre_actuators']
+device_type_names = ['pre_actuators', 'actuators']
 
 # launch nodes
+# TODO gerer plusieurs robots avec des namespaces ?
 for device_type_name in device_type_names:
     for device in robot_def[device_type_name]:
 
@@ -38,7 +39,7 @@ for device_type_name in device_type_names:
 
             # Launch
             param_server.setParam(node_name+'_type_name', device_type_name)
-            node = roslaunch.core.Node(package='ros_bprime_drivers',
+            node = roslaunch.core.Node(package='ros_2d_simulator',
                                        node_type=node_type,
                                        name=node_name,
                                        output=output)
