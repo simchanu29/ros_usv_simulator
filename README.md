@@ -1,6 +1,6 @@
 # ros_2d_simulator
 
-Generic simulator for buggy and USV.
+Generic simulator for USVs.
 
 Check the configuration file in `config` folder.
 
