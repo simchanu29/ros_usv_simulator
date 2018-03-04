@@ -39,27 +39,61 @@ def Msg(parent):
     return Msg()
 
 
-class Kayak():
+class USV_char():
     """
     Surface marine vehicule
     """
-    def __init__(self, mass=40.0, length=2.8, width=0.75, height=0.4,
-                 x=0.0, y=0.0, yaw=0.0, vx=0.0, vy=0.0):
-        massDensityOfFluid = 1000.0
-        dragCoeff = 0.5
-        dragAngCoeff = 0.3
+    def __init__(self, config_vehicule, config_simu, actuators, environnement):
+        print 'config_vehicule :', config_vehicule
+        print 'config_simu :', config_simu
+        print 'actuators :', actuators
+        print 'environnement :', environnement
 
-        self.mass = mass  # kg
-        self.length = length  # m
-        self.width = width  # m
-        self.angularMass = (mass * (length * width) ** 2) / 12.0
-        self.drag = 0.5 * massDensityOfFluid * height / 2.0 * width * dragCoeff
-        self.dragAng = 0.5 * massDensityOfFluid * height / 2.0 * length * dragAngCoeff * length / 2.0
+        massDensityOfFluid = environnement['fluid_mass_density']
+        # dragCoeff = 0.5
+        dragCoeffX = 0.05
+        dragCoeffY = 4
 
-        self.pos = np.array([x, y, 0.0])  # m
-        self.v = np.array([vx, vy, 0.0])  # m/s
-        self.v_yaw = 0.0  # rad/s
-        self.yaw = yaw  # rad
+        # Init dans le repere global
+        self.x = config_simu['position']['x']
+        self.y = config_simu['position']['y']
+        self.z = config_simu['position']['z']
+        self.roll = config_simu['position']['roll']
+        self.pitch = config_simu['position']['pitch']
+        self.yaw = config_simu['position']['yaw']
+        self.v_x = config_simu['speed']['v_x']
+        self.v_y = config_simu['speed']['v_y']
+        self.v_z = config_simu['speed']['v_z']
+        self.v_roll = config_simu['speed']['v_roll']
+        self.v_pitch = config_simu['speed']['v_pitch']
+        self.v_yaw = config_simu['speed']['v_yaw']
+
+        self.mass = config_vehicule['mass']  # kg
+        self.length = config_vehicule['length']  # m
+        self.width = config_vehicule['width']  # m
+        self.height = config_vehicule['height']  # m
+
+        # Matric d'inertie simplifiée
+        self.angularMass = (self.mass * (self.length * self.width) ** 2) / 12.0 # Parallepipède rectangle
+
+        # On a une commande char avec plusieurs moteurs, donc une force de friction par moteur
+        # drag = résistance de l'eau
+        # On considère que le vehicule est à 100% de sa coque dans l'eau ce qui veut dire que ses dimensions sont les dimensions immergées
+        # v_yaw est une vitesse angulaire, donc on transforme aussi avec ce coeff la vitesse angulaire en vitesse en bout
+        # TODO generaliser les equations avec des matrices
+        self.dragX = 0.5 * massDensityOfFluid * self.height * self.width * dragCoeffX
+        self.dragY = 0.5 * massDensityOfFluid * self.height * self.length * dragCoeffY
+        self.dragAng = 0.5 * massDensityOfFluid * self.height * self.length / 2.0 * dragCoeffY * (self.length / 2.0)**2
+        for motor in actuators:
+            if actuators[motor]['type'] != 'None':
+                print 'motor :', motor
+                dist2center = (actuators[motor]['position']['x']**2
+                               + actuators[motor]['position']['y']**2
+                               + actuators[motor]['position']['z']**2)**0.5
+
+        self.pos = np.array([self.x, self.y, 0.0])  # m
+        # Vitesse dans le repère global
+        self.v = np.array([self.v_x, self.v_y, 0.0])  # m/s
 
 class Buggy():
     """
@@ -101,7 +135,8 @@ class Buggy():
         # On a une commande char avec plusieurs moteurs, donc une force de friction par moteur
         # drag = résistance de l'air + frottement des roues
         # TODO generaliser les equations avec des matrices
-        self.drag = 0.5 * massDensityOfFluid * self.height * self.width * dragCoeff
+        self.dragX = 0.5 * massDensityOfFluid * self.height * self.width * dragCoeff
+        self.dragY = 0.5 * massDensityOfFluid * self.height * self.length * dragCoeff
         self.dragAng = 0.5 * massDensityOfFluid * self.height * self.length / 2.0 * dragAngCoeff * self.length / 4.0
         for motor in actuators:
             if actuators[motor]['type'] != 'None':
@@ -120,10 +155,10 @@ class Buggy():
 class SimVehicule():
     def __init__(self):
 
-        self.vehicule = Buggy(config['characteristics'],
-                              config['simulated_characteristics'],
-                              config['actuators'],
-                              environnement['environnement'])
+        self.vehicule = USV_char(config['characteristics'],
+                                config['simulated_characteristics'],
+                                config['actuators'],
+                                environnement['environnement'])
 
         # Definitions des messages
         self.msgPose = Msg(PoseStamped)
@@ -140,9 +175,11 @@ class SimVehicule():
 
     def process(self, dt):
 
+        rospy.loginfo("_____")
+
         # Somme des contraintes
-        sumForce = np.array([0, 0, 0])
-        sumMoment = np.array([0, 0, 0])
+        sumForce = np.array([0.0, 0.0, 0.0])
+        sumMoment = np.array([0.0, 0.0, 0.0])
         for constraint in self.constraints:
             # Contraintes dans le repère du vehicule
             sumForce[0] += self.constraints[constraint].wrench.force.x
@@ -152,37 +189,71 @@ class SimVehicule():
             sumMoment[1] += self.constraints[constraint].wrench.torque.y
             sumMoment[2] += self.constraints[constraint].wrench.torque.z
 
+        rospy.loginfo("V self.constraints = %s", self.constraints)
+        rospy.loginfo("V sumForce     = %s", sumForce)
+        rospy.loginfo("V sumMoment    = %s", sumMoment)
+
         # Rotation des contraintes dans le repère global
+        rotAngle = self.vehicule.yaw
+        Rot = np.array([[np.cos(rotAngle), -np.sin(rotAngle), 0.0],
+                        [np.sin(rotAngle), np.cos(rotAngle), 0.0],
+                        [0.0, 0.0, 1.0]])
+        sumForce = Rot.dot(sumForce)
+
+        # Rotation des vitesse vers le repère vehicule
+        rotAngle = -self.vehicule.yaw
+        Rot = np.array([[np.cos(rotAngle), -np.sin(rotAngle), 0.0],
+                        [np.sin(rotAngle), np.cos(rotAngle), 0.0],
+                        [0.0, 0.0, 1.0]])
+        veh_v = Rot.dot(self.vehicule.v)
+
+        rospy.loginfo("V vitesse = %s", veh_v)
+
+        # Calcul avec prise en compte de la dérive dans le repère global
+        dragForceX = self.vehicule.dragX * veh_v[0]**2 * np.sign(veh_v[0])
+        dragForceY = self.vehicule.dragY * veh_v[1]**2 * np.sign(veh_v[1])
+        dragForce = np.array([dragForceX,dragForceY,0.0])
+
+        # rospy.loginfo("V dragY        = %s", self.vehicule.dragY)
+        # rospy.loginfo("V dragForceY   = %s", dragForceY)
+        # rospy.loginfo("V dragForce    = %s", dragForce)
+
+        # Rotation des contraintes vers le repère global
         rotAngle = self.vehicule.yaw
         Rot = np.array([[np.cos(rotAngle), -np.sin(rotAngle), 0],
                         [np.sin(rotAngle), np.cos(rotAngle), 0],
                         [0, 0, 1]])
-        sumForce = Rot.dot(sumForce)
+        dragForce = Rot.dot(dragForce)
 
-        dragForce = self.vehicule.drag * self.vehicule.v ** 2 * np.sign(self.vehicule.v)
-        dragForceAng = 2.0 * self.vehicule.dragAng * self.vehicule.v_yaw ** 2 * np.sign(self.vehicule.v_yaw)
+        # Calcul trainée pour les rotations
+        dragForceAng = self.vehicule.dragAng * self.vehicule.v_yaw ** 2 * np.sign(self.vehicule.v_yaw)
+
+        # Ajout de l'effet de la trainée linéaire sur la trainée angulaire
+        # v_yaw_angle = np.arctan2(self.vehicule.v_yaw[1],self.vehicule.v_yaw[0])
+        # diff_cap = v_yaw_angle - self.vehicule.yaw
+
 
         # PFD : Accéleration
         linAcc = (sumForce - dragForce) / self.vehicule.mass
         angAcc = (sumMoment[2] - dragForceAng) / self.vehicule.angularMass  # On restreint la matrice d'inertie à l'axe Z
 
-        rospy.loginfo("_____")
-        rospy.loginfo("v_yaw         = %s", self.vehicule.v_yaw)
-        rospy.loginfo("dragForceAng = %s", dragForceAng)
-        rospy.loginfo("dragAng       = %s", self.vehicule.dragAng)
-        rospy.loginfo("angAcc       = %s", angAcc)
+        # rospy.loginfo("G v_yaw        = %s", self.vehicule.v_yaw)
+        rospy.loginfo("G dragForceAng = %s", dragForceAng)
+        # rospy.loginfo("G dragAng      = %s", self.vehicule.dragAng)
+        rospy.loginfo("G angAcc       = %s", angAcc)
+
 
         # Euler : Vitesse
         self.vehicule.v = self.vehicule.v + dt * linAcc
         self.vehicule.v_yaw = self.vehicule.v_yaw + dt * angAcc
 
         # test
-        dragForce = self.vehicule.drag * self.vehicule.v ** 2 * np.sign(self.vehicule.v)
-        dragForceAng = 2.0 * self.vehicule.dragAng * self.vehicule.v_yaw ** 2 * np.sign(self.vehicule.v_yaw)
-        linAcc = (sumForce - dragForce) / self.vehicule.mass
-        angAcc = (sumMoment[2] - dragForceAng) / self.vehicule.angularMass  # On se restreint à l'axe Z
-        self.vehicule.v = self.vehicule.v + dt * linAcc
-        self.vehicule.v_yaw = self.vehicule.v_yaw + dt * angAcc
+        # dragForce = self.vehicule.drag * self.vehicule.v ** 2 * np.sign(self.vehicule.v)
+        # dragForceAng = self.vehicule.dragAng * self.vehicule.v_yaw**2 * np.sign(self.vehicule.v_yaw)
+        # linAcc = (sumForce - dragForce) / self.vehicule.mass
+        # angAcc = (sumMoment[2] - dragForceAng) / self.vehicule.angularMass  # On se restreint à l'axe Z
+        # self.vehicule.v = self.vehicule.v + dt * linAcc
+        # self.vehicule.v_yaw = self.vehicule.v_yaw + dt * angAcc
 
         # Euler : Position
         self.vehicule.pos = self.vehicule.pos + dt * self.vehicule.v
@@ -199,12 +270,12 @@ class SimVehicule():
         self.msgAccel.accel.linear.y = linAcc[1]
         self.msgAccel.accel.angular.z = angAcc
 
-        rospy.loginfo("v_yaw         = %s", self.vehicule.v_yaw)
-        rospy.loginfo("yaw          = %s", self.vehicule.yaw)
-        rospy.loginfo("dragForce    = %s", dragForce)
-        rospy.loginfo("linAcc       = %s", linAcc)
-        rospy.loginfo("v            = %s", self.vehicule.v)
-        rospy.loginfo("pos          = %s", self.vehicule.pos)
+        rospy.loginfo("G v_yaw         = %s", self.vehicule.v_yaw)
+        rospy.loginfo("G yaw          = %s", self.vehicule.yaw)
+        # rospy.loginfo("G dragForce    = %s", dragForce)
+        rospy.loginfo("G linAcc       = %s", linAcc)
+        # rospy.loginfo("G v            = %s", self.vehicule.v)
+        rospy.loginfo("G pos          = %s", self.vehicule.pos)
 
         # Remplissage des header pour la simulation
         self.msgPose.fill_header(frame_id='map')
@@ -236,12 +307,8 @@ if __name__ == '__main__':
     for motor in config['actuators']:
         if config['actuators'][motor]['type'] != 'None':
 
-            # creation des callbacks
-            def update_wrench(msg):
-                simu.update_wrench(msg, motor)
-
             # sub motor
-            sub_motor = rospy.Subscriber('force_'+motor, WrenchStamped, update_wrench)
+            sub_motor = rospy.Subscriber('force_'+motor, WrenchStamped, simu.update_wrench, motor)
 
     sub_dt = rospy.Subscriber('dt', Float64, simu.update_dt)
 

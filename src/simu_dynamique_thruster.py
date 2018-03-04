@@ -3,7 +3,7 @@
 
 # Node ROS simu_thruster
 
-# S'abonne aux commande et position moteur pour traduire ça en 
+# S'abonne aux commande et position moteur pour traduire ça en
 # force et en moment sur le système
 
 
@@ -14,39 +14,12 @@ from geometry_msgs.msg import WrenchStamped
 from geometry_msgs.msg import Quaternion
 import tf
 
-# class T200BlueRobotics():
-#
-#     def __init__(self,x,y,tension):
-#         self.tension = tension
-#         self.x = x # coordonnee le long de l'USV
-#         self.y = y # perpendiculairement au cap de l'USV
-#         self.maxPower = 300
-#         self.maxThrustInfo = {16:11.23, 12:7.29}
-#         self.maxThrust = self.maxThrustInfo[tension]
-#
-#         print(self.x, self.y, self.tension, self.maxThrust)
-#
-#
-# class ClassicMotor():
-#
-#     def __init__(self, x, y, tension):
-#         self.tension = tension
-#         self.x = x  # coordonnee le long du vehicule
-#         self.y = y  # perpendiculairement au cap du vehicule
-#         self.maxPower = 50
-#         self.motoReduction = 1
-#         self.wheelDiameter = 0.15  # m
-#         # self.maxThrustInfo = {16: 11.23, 12: 7.29}
-#         self.maxThrust = float(tension)/5.0*self.wheelDiameter*self.motoReduction*self.maxPower
-#
-#         print(self.x, self.y, self.tension, self.maxThrust)
-
-
 class SimDynMot():
 
     def __init__(self, config):
         self.config = config
 
+        # initialisation des commandes
         self.cmd_thrust = 0
 
         self.orientation = Quaternion()
@@ -68,20 +41,25 @@ class SimDynMot():
     def process_force(self, commande):
         # La commande est de -1 à 1
         # Pour les moteurs on est habituellement sur une courbe quadratique de puissance
-        thrust = self.config['type']['max_force']*commande*commande
+        y = 0.1
+        thrust = self.config['type']['max_force']*(y*commande**2 + (1-y)*commande)
 
         return thrust
 
     def process(self):
+        # Traduction pwm->[-1;1]
         cmd_thrust = (self.cmd_thrust-1500)/500.0
+
+        # Gestion des quaternions
         print 'self.orientation:', self.orientation, self.orientation.__class__
         quaternion = (self.orientation.x, self.orientation.y, self.orientation.z, self.orientation.w)
         euler = tf.transformations.euler_from_quaternion(quaternion)
         yaw = euler[0]
         pitch = euler[1]
         roll = euler[2]
-        thrust = self.process_force(cmd_thrust)
 
+        # Calcul de la force
+        thrust = self.process_force(cmd_thrust)
         self.wrenchThruster.wrench.force.x = thrust * np.cos(yaw)
         self.wrenchThruster.wrench.force.y = thrust * np.sin(yaw)
         self.wrenchThruster.wrench.force.z = 0
@@ -89,11 +67,7 @@ class SimDynMot():
         # la force s'applique en (x,y) avec un angle a par rapport au cap du vehicule.
         # x est la coordonnee le long du vehicule
         self.wrenchThruster.wrench.torque.z = self.wrenchThruster.wrench.force.y*self.config['position']['x'] \
-                                       + self.wrenchThruster.wrench.force.x*self.config['position']['y']
-        self.wrenchThruster.wrench.torque.x = self.wrenchThruster.wrench.force.z*self.config['position']['y'] \
-                                       + self.wrenchThruster.wrench.force.y*self.config['position']['z']
-        self.wrenchThruster.wrench.torque.y = self.wrenchThruster.wrench.force.z*self.config['position']['x'] \
-                                       + self.wrenchThruster.wrench.force.x*self.config['position']['z']
+                                            + self.wrenchThruster.wrench.force.x*self.config['position']['y']
 
         pub_force.publish(self.wrenchThruster)
 
@@ -103,7 +77,7 @@ if __name__ == '__main__':
 
     # === COMMON ===
 
-    # La node doit se lancer en sachant où chercher sa config
+    # La node doit se lancer en sachant où chercher sa config. Le nom du noeud est géré par le launcher
     node_name = rospy.get_name()
     device_type_name = rospy.get_param(node_name+'_type_name')
 

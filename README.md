@@ -1,4 +1,4 @@
-# ros_2d_simulator
+# ros_usv_simulator
 
 Generic simulator for USVs.
 

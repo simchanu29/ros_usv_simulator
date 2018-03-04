@@ -17,7 +17,8 @@ installée.
 
 import rospy
 import numpy as np
-from ros_adafruit_pwm_driver.msg import PwmCmd
+#from ros_adafruit_pwm_driver.msg import PwmCmd
+from ros_maestro.msg import PwmCmd
 from std_msgs.msg import Int16
 
 class PwmOutput():
@@ -41,7 +42,10 @@ class SimPWMBoard():
 
     def update_cmd_pwm(self, msg):
         pin = int(msg.pin)
-        self.out_tab[pin].publish(msg.command)
+        # Gère les messages entre -100 et 100
+        if np.abs(msg.command)>100.0:
+            msg.command = 0.0
+        self.out_tab[pin].publish(msg.command/2.0*10+1500)
 
 
 if __name__ == '__main__':

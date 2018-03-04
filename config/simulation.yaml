@@ -18,6 +18,3 @@ vehicule:
         y: -0.1
       maxPower: 50  # Watt
       gain: 1*0.15  # Wheeled robot
-
-
-# Utiliser Xacro pour paramétrer les launchfiles

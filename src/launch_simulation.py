@@ -15,7 +15,7 @@ device_types = rospy.get_param('device_types')
 launch = roslaunch.scriptapi.ROSLaunch()
 launch.start()
 param_server = rosparam.get_param_server()
-output_node_name = 'simu_motor_left'
+output_node_name = 0
 output = None
 process_dic = {}
 # device_type_names = ['sensors', 'actuators', 'pre_actuators']
@@ -39,7 +39,7 @@ for device_type_name in device_type_names:
 
             # Launch
             param_server.setParam(node_name+'_type_name', device_type_name)
-            node = roslaunch.core.Node(package='ros_2d_simulator',
+            node = roslaunch.core.Node(package='ros_usv_simulator',
                                        node_type=node_type,
                                        name=node_name,
                                        output=output)

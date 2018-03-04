@@ -13,12 +13,10 @@ command_types:
 
 device_types:
 
-  motor_bprime:
+  motor_helios:
     node_type: 'simu_dynamique_thruster.py'
-    motor_type: 'wheel' # Or propeller
-    max_speed: 10
-    max_force: 10
-    kinetic_friction_coeff: 0.004
+    motor_type: 'propeller' # Or propeller
+    max_force: 5
     orientable: False
     pre_actuator: True
 
@@ -34,14 +32,14 @@ device_types:
     node_type: 'simu_pwm_board.py'
     output_number: 24
 
-  not_simulated: None
+  not_simulated: 'None'
 
 simulation:
-  dt: 0.1
-  dt_reel: 1
+  dt: 0.03
+  dt_reel: 0.03
   duration: 100000
   environnement:
-    fluid_mass_density: 1.225 # kg/m3
+    fluid_mass_density: 1000 # kg/m3
 
 #==========================================================
 # Config du robot
@@ -66,36 +64,36 @@ robot:
 
   characteristics:
     axis_offset: [0,0,0]
-    length: 0.2
-    width: 0.2
-    height: 0.08
-    mass: 1.0 # kg
+    length: 1.2
+    height: 0.3
+    width: 0.6
+    mass: 20.0 # kg
     # TODO : intertial_matrix: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
   actuators:
 
     motor_left:
-      type: 'motor_bprime'
+      type: 'motor_helios'
       command:
         type: 'motor100'
         pwm:
-          pin: 10
+          pin: 0
       orientation: 0
       position:
-        x: 0.0
-        y: -0.1
+        x: -0.5
+        y: -0.4
         z: 0.0
 
     motor_right:
-      type: 'motor_bprime'
+      type: 'motor_helios'
       command:
         type: 'motor100'
         pwm:
-          pin: 11
+          pin: 1
       orientation: 0
       position:
-        x: 0.0
-        y: 0.1
+        x: -0.5
+        y: 0.4
         z: 0.0
 
     servo_cam_azimuth:
@@ -103,18 +101,18 @@ robot:
       command:
         type: 'servo90'
         pwm:
-          pin: 1
+          pin: 10
 
     servo_cam_declinaison:
       type: 'not_simulated'
       command:
         type: 'servo90'
         pwm:
-          pin: 2
+          pin: 11
 
   pre_actuators:
 
-    adafruit_pwm_hat:
+    maestro:
       type: 'pwm_board'
 
   sensors:
