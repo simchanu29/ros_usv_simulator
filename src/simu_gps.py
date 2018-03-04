@@ -18,13 +18,13 @@ from sensor_msgs.msg import NavSatStatus
 class SimGPS():
     def __init__(self):
         # Subscriber
-        self.pose_sub = rospy.Subscriber('simu/pose_real', PoseStamped, self.update_pose)
-        self.twist_sub = rospy.Subscriber('simu/twist_real', TwistStamped, self.update_twist)
+        self.pose_sub = rospy.Subscriber('pose_real', PoseStamped, self.update_pose)
+        self.twist_sub = rospy.Subscriber('twist_real', TwistStamped, self.update_twist)
 
         # Publisher
-        self.gpsfix_pub = rospy.Publisher('fix', NavSatFix, queue_size=1)
+        self.gpsfix_pub = rospy.Publisher('/gps/fix', NavSatFix, queue_size=1)
         self.gpsfix = NavSatFix()
-        self.gpsvel_pub = rospy.Publisher('vel', TwistStamped, queue_size=1)
+        self.gpsvel_pub = rospy.Publisher('/gps/vel', TwistStamped, queue_size=1)
         self.gpsvel = TwistStamped()
 
         # Configuration initiale du gps

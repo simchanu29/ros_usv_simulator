@@ -42,4 +42,3 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         time_handler.new_step()
         r.sleep()
-

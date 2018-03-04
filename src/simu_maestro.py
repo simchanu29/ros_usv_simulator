@@ -10,7 +10,7 @@ Renvoie sur le topic associé au moteur la commande (-100 à 100)
 En fait cette node sert juste de hub de redistribution au niveau de la simulation.
 En effet dans le simulateur chaque moteur va écouter sur son canal propre.
 
-Cette node ne peut être utilisée que si la node de hardware ros_adafruit_pwm_driver est installée.
+Cette node ne peut être utilisée que si la node de hardware ros_maestro est installée.
 De manière générale ce sera souvent le cas qu'un driver simulé ne puisse fonctionner que si sa contrepartie réelle est
 installée.
 """
@@ -49,7 +49,7 @@ class SimPWMBoard():
 
 
 if __name__ == '__main__':
-    rospy.init_node('simu_pwm_board')
+    rospy.init_node('simu_maestro')
 
     # === COMMON ===
 

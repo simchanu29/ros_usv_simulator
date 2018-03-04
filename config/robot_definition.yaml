@@ -35,8 +35,8 @@ device_types:
   not_simulated: 'None'
 
 simulation:
-  dt: 0.03
-  dt_reel: 0.03
+  dt: 0.05
+  dt_reel: 0.05
   duration: 100000
   environnement:
     fluid_mass_density: 1000 # kg/m3

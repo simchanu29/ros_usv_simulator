@@ -14,22 +14,16 @@ import tf
 
 class Plotter():
     def __init__(self):
-        rospy.init_node('simu_plot')
 
-        # Subscriber
-        self.subCmdThrAv = rospy.Subscriber('avant/cmd_thr', Int16, self.updateCmdThrAv)
-        self.cmdThrAv = 0
-        self.subCmdThrAr = rospy.Subscriber('arriere/cmd_thr', Int16, self.updateCmdThrAr)
-        self.cmdThrAr = 0
-        self.subPosThrAv = rospy.Subscriber('avant/cmd_pos', Int16, self.updatePosThrAv)
-        self.posThrAv = 0
-        self.subPosThrAr = rospy.Subscriber('arriere/cmd_pos', Int16, self.updatePosThrAr)
-        self.posThrAr = 0
-        self.subPose = rospy.Subscriber('pose_real', PoseStamped, self.updatePose)
+        # Subscriber vars
+        self.motors = {}
         self.pose = PoseStamped()
+        self.twist = TwistStamped()
         self.theta = 0.0
         self.x = 0.0
         self.y = 0.0
+        self.vx = 0.0
+        self.vy = 0.0
 
         # Init plot
         self.win = plt.GraphicsWindow()
@@ -39,27 +33,15 @@ class Plotter():
         self.plt_boat = self.fig.plot()
         # Init trace
         self.plt_trace = self.fig.plot()
-        # Init cmd front
-        self.plt_cmdfront = self.fig.plot()
-        # Init cmd rear
-        self.plt_cmdrear = self.fig.plot()
-
+        # Init twist
+        self.plt_twist = self.fig.plot()
 
         self.trace = [[], [], []]
 
-    def updateCmdThrAv(self, msg):
-        self.cmdThrAv = msg.data
+    def update_motor(self, msg, motor):
+        self.motors[motor]['thrust'] = msg.data
 
-    def updateCmdThrAr(self, msg):
-        self.cmdThrAr = msg.data
-
-    def updatePosThrAv(self, msg):
-        self.posThrAv = msg.data
-
-    def updatePosThrAr(self, msg):
-        self.posThrAr = msg.data
-
-    def updatePose(self, msg):
+    def update_pose(self, msg):
         self.pose = msg
         self.x = self.pose.pose.position.x
         self.y = self.pose.pose.position.y
@@ -67,6 +49,11 @@ class Plotter():
                                                                self.pose.pose.orientation.y,
                                                                self.pose.pose.orientation.z,
                                                                self.pose.pose.orientation.w))[2]
+
+    def update_twist(self, msg):
+        self.twist = msg
+        self.vx = self.twist.twist.linear.x
+        self.vy = self.twist.twist.linear.y
 
     def update_trace(self):
         MAX_SIZE = 500
@@ -88,27 +75,63 @@ class Plotter():
         self.update_trace()
         self.plt_trace.setData(self.trace[0], self.trace[1], pen=plt.mkPen('g'))
 
-        # print "====== Plotting front cmd"
-        fr_vec = np.array([[1.2, 1.2+self.cmdThrAv/10.0 * np.cos(self.posThrAv/180.0*np.pi)],
-                           [0.0, self.cmdThrAv/10.0 * np.sin(self.posThrAv/180.0*np.pi)],
-                           [1.0, 1.0]])
-        fr_vec = geom.homothetie_vec(fr_vec, self.theta,
-                                     self.x, self.y)
-        self.plt_cmdfront.setData(fr_vec[0],
-                                  fr_vec[1], pen=plt.mkPen('b'))
+        # print "====== Plotting twist"
+        vec = np.array([[ 0.0, self.vx],
+                        [ 0.0, self.vy],
+                        [ 1.0, 1.0]])
+        vec = geom.homothetie_vec(vec, 0.0,
+                                  self.x, self.y)
+        self.plt_twist.setData(vec[0],
+                               vec[1], pen=plt.mkPen('b', width=2))
 
-        # print "====== Plotting rear cmd"
-        re_vec = np.array([[-1.2, -1.2+self.cmdThrAr/10.0 * np.cos(self.posThrAr/180.0*np.pi)],
-                           [0.0, self.cmdThrAr/10.0 * np.sin(self.posThrAr/180.0*np.pi)],
-                           [1.0, 1.0]])
-        re_vec = geom.homothetie_vec(re_vec, self.theta,
-                                     self.x, self.y)
-        self.plt_cmdrear.setData(re_vec[0],
-                                 re_vec[1], pen=plt.mkPen('b'))
+        # print "====== Plotting motors"
+        for motor in self.motors:
+            # print "====== Plotting cmd", motor
 
+            x_mot = float(self.motors[motor]['position']['x'])
+            y_mot = float(self.motors[motor]['position']['y'])
+            angle = float(self.motors[motor]['orientation'])
+            cmd = float(self.motors[motor]['thrust'])
+            plot = self.motors[motor]['plot']
+
+            vec = np.array([[ x_mot, x_mot + (cmd-1500)/500.0 * np.cos(angle)],
+                            [ y_mot, y_mot + (cmd-1500)/500.0 * np.sin(angle)],
+                            [1.0, 1.0]])
+            vec = geom.homothetie_vec(vec, self.theta,
+                                      self.x, self.y)
+            plot.setData(vec[0],
+                         vec[1], pen=plt.mkPen('r', width=3))
 
 if __name__ == '__main__':
+    rospy.init_node('simu_plot')
+
+    config = rospy.get_param('robot')
+    device_types = rospy.get_param('device_types')
+
+    # Remplissage des donnees du type
+    for motor in config['actuators']:
+        config['actuators'][motor]['type'] = device_types[config['actuators'][motor]['type']]
+
     plot = Plotter()
+
+    rospy.Subscriber('pose_real', PoseStamped, plot.update_pose)
+    rospy.Subscriber('twist_real', TwistStamped, plot.update_twist)
+    for motor in config['actuators']:
+        if config['actuators'][motor]['type'] != 'None':
+
+            # init dict
+            position = config['actuators'][motor]['position']
+            orientation = config['actuators'][motor]['orientation']
+            plot.motors[motor] = {}
+            plot.motors[motor]['thrust'] = 0
+            plot.motors[motor]['orientation'] = orientation
+            plot.motors[motor]['position'] = position
+            plot.motors[motor]['plot'] = plot.fig.plot()
+
+            # sub motor
+            pin = config['actuators'][motor]['command']['pwm']['pin']
+            sub_motor = rospy.Subscriber('pwm_out_'+str(pin), Int16, plot.update_motor, motor)
+
     rate = rospy.Rate(5)
     while not rospy.is_shutdown():
         plot.process()

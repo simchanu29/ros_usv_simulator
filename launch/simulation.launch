@@ -1,27 +1,24 @@
 
 <launch>
 
-    <rosparam file="$(find ros_usv_simulator)/config/robot_definition.yaml" command="load"/>
-    <!-- Le fichier de config sera passé à toutes les nodes créées par le launcher -->
+    <arg name="ns"/>
+    <arg name="simu_config_path"/>
 
-    <!-- Pour modifier le lancement des nodes il faut modifier la définition du robot -->
-    <node pkg="ros_usv_simulator" type="launch_simulation.py" name="sim_launcher" output="screen"/>
-    <node pkg="ros_usv_simulator" type="simu_vehicule.py" name="sim_vehicule" output="screen"/>
-    <node pkg="ros_usv_simulator" type="simu_time.py" name="sim_time" output="screen"/>
+    <group ns="$(arg ns)">
 
+        <rosparam file="$(arg simu_config_path)" command="load"/>
+        <!-- Le fichier de config sera passé à toutes les nodes créées par le launcher -->
 
-    <!-- Tests pour HELIOS, à enlever dans la version finale -->
-    <node name="cmd_interpreter" pkg="helios_command" type="cmd_interpreter.py">
-      <param name="sub_topic" value="cmd_twist"/>
-      <param name="maximum" value="0.7"/>
-      <param name="coeff_rot" value="1.0"/>
-      <param name="coeff_lin" value="1.0"/>
-    </node>
+        <!-- Pour modifier le lancement des nodes il faut modifier la définition du robot -->
+        <node pkg="ros_usv_simulator" type="launch_simulation.py" name="sim_launcher" output="screen">
+            <param name="namespace_simu" value="$(arg ns)"/>
+        </node>
 
-    <include file="$(find ros_teleop)/launch/teleop.launch">
-        <arg name="config_path" value="$(find ros_helios_config)/config/ros_teleop/keyconfig.yaml"/>
-    </include>
+        <node pkg="ros_usv_simulator" type="simu_vehicule.py" name="sim_vehicule" output="screen"/>
+        <node pkg="ros_usv_simulator" type="simu_time.py" name="sim_time" output="screen"/>
 
-    <node pkg="ros_usv_simulator" type="simu_plot.py" name="sim_plot"/>
+        <node pkg="ros_usv_simulator" type="simu_plot.py" name="sim_plot"/>
+
+    </group>
 
 </launch>

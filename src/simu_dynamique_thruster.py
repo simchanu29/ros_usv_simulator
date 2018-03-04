@@ -82,7 +82,10 @@ if __name__ == '__main__':
     device_type_name = rospy.get_param(node_name+'_type_name')
 
     # Config
-    config_node = rospy.get_param('robot/'+device_type_name+'/'+node_name[6:])
+    ns = rospy.get_namespace()
+    nslen = len(ns)
+    prefix_len = nslen + 5 # On enlève le namespace et simu_
+    config_node = rospy.get_param('robot/'+device_type_name+'/'+node_name[prefix_len:])
     print config_node
 
     # Pas sur qu'on en ai besoin mais au cas où
@@ -103,6 +106,6 @@ if __name__ == '__main__':
     # sub pub
     sub_yaw = rospy.Subscriber('orientation', Quaternion, simu.update_orientation) # Eventuellement la node qui est l'actionneur placé avant le moteur a son propre temps. Ou sinon il y a une node qui donne le temps et qui synchronise les simulation (mieux)
     sub_pwm_cmd = rospy.Subscriber('pwm_out_'+str(pin), Int16, simu.update_cmd_thrust)
-    pub_force = rospy.Publisher('force_'+node_name[6:], WrenchStamped, queue_size=1)
+    pub_force = rospy.Publisher('force_'+node_name[prefix_len:], WrenchStamped, queue_size=1)
 
     rospy.spin()

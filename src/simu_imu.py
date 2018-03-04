@@ -18,12 +18,12 @@ from sensor_msgs.msg import Imu
 class SimIMU():
     def __init__(self):
         # Subscriber
-        self.pose_sub = rospy.Subscriber('simu/pose_real', PoseStamped, self.update_pose)
-        self.twist_sub = rospy.Subscriber('simu/twist_real', TwistStamped, self.update_twist)
-        self.wrench_sub = rospy.Subscriber('simu/acc_real', AccelStamped, self.update_acc)
+        self.pose_sub = rospy.Subscriber('pose_real', PoseStamped, self.update_pose)
+        self.twist_sub = rospy.Subscriber('twist_real', TwistStamped, self.update_twist)
+        self.wrench_sub = rospy.Subscriber('acc_real', AccelStamped, self.update_acc)
 
         # Publisher
-        self.imu_pub = rospy.Publisher('imu', Imu, queue_size=1)
+        self.imu_pub = rospy.Publisher('/imu', Imu, queue_size=1)
         self.imu = Imu()
 
         # Configuration initiale de l'imu
