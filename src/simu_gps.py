@@ -9,6 +9,7 @@
 
 import rospy
 import numpy as np
+import Utility.geodesy as geod
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
 from sensor_msgs.msg import NavSatFix
@@ -28,10 +29,6 @@ class SimGPS():
         self.gpsvel = TwistStamped()
 
         # Configuration initiale du gps
-        self.CONVERSION_FACTOR_GPS = 1852  # m/min d'angle
-        self.lat_origin = 60.0
-        self.lon_origin = 0.0
-
         self.gpsfix.status = NavSatStatus(status=NavSatStatus.STATUS_FIX,
                                           service=NavSatStatus.SERVICE_GPS)  # gps simple
         self.gpsfix.position_covariance = [1, 1, 1,
@@ -41,10 +38,7 @@ class SimGPS():
 
     def update_pose(self, msg):
         self.gpsfix.header = msg.header
-        self.gpsfix.latitude = msg.pose.position.x / 60.0 / self.CONVERSION_FACTOR_GPS \
-                               + self.lat_origin
-        self.gpsfix.longitude = msg.pose.position.y / 60.0 / self.CONVERSION_FACTOR_GPS \
-                                / np.cos(self.lat_origin / 180 * np.pi) + self.lon_origin
+        self.gpsfix.latitude, self.gpsfix.longitude = geod.lambert2latlon(msg.pose.position.x, msg.pose.position.y)
         self.gpsfix.altitude = 0.0
 
     def update_twist(self, msg):
