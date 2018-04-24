@@ -4,8 +4,8 @@
 import rospy
 import numpy as np
 import Utility.geometry as geom
+import Utility.geodesy as geod
 from geometry_msgs.msg import PoseStamped
-from geometry_msgs.msg import Quaternion
 from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import Int16
 import pyqtgraph as plt
@@ -13,24 +13,36 @@ import tf
 
 
 class Plotter():
+    """
+    Affiche les commandes avec un offset afin que l'origine gps spécifiée dans le fichier de config soit à 0
+    """
     def __init__(self):
 
         # Subscriber vars
         self.motors = {}
         self.pose = PoseStamped()
         self.twist = TwistStamped()
-        self.theta = 0.0
-        self.x = 0.0
-        self.y = 0.0
+        self.theta = float(config['simulated_characteristics']['orientation']['yaw'])
+
+        # Gestion de l'offset à cause de l'UTM : le zero de l'affichage sera le point gps indiqué
+        x, y = geod.latlon2meters(float(config['simulated_characteristics']['position']['gps_lon']),
+                                  float(config['simulated_characteristics']['position']['gps_lat']))
+        self.x_offset = x
+        self.y_offset = y
+
+        self.x = float(config['simulated_characteristics']['position']['x']) - self.x_offset
+        self.y = float(config['simulated_characteristics']['position']['y']) - self.y_offset
         self.vx = 0.0
         self.vy = 0.0
 
         # Init plot
         self.win = plt.GraphicsWindow()
         self.fig = self.win.addPlot(title="Display simu")
-        self.fig.setXRange(-5, 5)
-        self.fig.setYRange(-5, 5)
+        self.fig.setXRange(self.x-5, self.x+5)
+        self.fig.setYRange(self.y-5, self.x+5)
         self.plt_boat = self.fig.plot()
+        self.plt_zone = self.fig.plot()
+
         # Init trace
         self.plt_trace = self.fig.plot()
         # Init twist
@@ -38,13 +50,15 @@ class Plotter():
 
         self.trace = [[], [], []]
 
+        self.plt_zone.setData(env['environnement']['authorized_zone']['x'],env['environnement']['authorized_zone']['y'], pen=plt.mkPen('g'))
+
     def update_motor(self, msg, motor):
         self.motors[motor]['thrust'] = msg.data
 
     def update_pose(self, msg):
         self.pose = msg
-        self.x = self.pose.pose.position.x
-        self.y = self.pose.pose.position.y
+        self.x = self.pose.pose.position.x - self.x_offset
+        self.y = self.pose.pose.position.y - self.y_offset
         self.theta = tf.transformations.euler_from_quaternion((self.pose.pose.orientation.x,
                                                                self.pose.pose.orientation.y,
                                                                self.pose.pose.orientation.z,
@@ -89,11 +103,12 @@ class Plotter():
             # print "====== Plotting cmd", motor
 
             x_mot = float(self.motors[motor]['position']['x'])
-            y_mot = float(self.motors[motor]['position']['y'])
+            y_mot = - float(self.motors[motor]['position']['y'])
             angle = float(self.motors[motor]['orientation'])
             cmd = float(self.motors[motor]['thrust'])
             plot = self.motors[motor]['plot']
 
+            print "plot cmd :", (cmd-1500)/500.0, "for", motor, "at [", x_mot,",",y_mot,"]"
             vec = np.array([[ x_mot, x_mot + (cmd-1500)/500.0 * np.cos(angle)],
                             [ y_mot, y_mot + (cmd-1500)/500.0 * np.sin(angle)],
                             [1.0, 1.0]])
@@ -106,6 +121,7 @@ if __name__ == '__main__':
     rospy.init_node('simu_plot')
 
     config = rospy.get_param('robot')
+    env = rospy.get_param('simulation')
     device_types = rospy.get_param('device_types')
 
     # Remplissage des donnees du type
@@ -130,6 +146,7 @@ if __name__ == '__main__':
 
             # sub motor
             pin = config['actuators'][motor]['command']['pwm']['pin']
+            print "Subscribing to", pin, "for motor :", motor
             sub_motor = rospy.Subscriber('pwm_out_'+str(pin), Int16, plot.update_motor, motor)
 
     rate = rospy.Rate(5)

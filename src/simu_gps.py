@@ -35,10 +35,16 @@ class SimGPS():
                                            1, 1, 1,
                                            1, 1, 1]
         self.gpsfix.position_covariance_type = self.gpsfix.COVARIANCE_TYPE_UNKNOWN
+        self.lon_offset = -4
+        self.lat_offset = 48.5
 
     def update_pose(self, msg):
         self.gpsfix.header = msg.header
-        self.gpsfix.latitude, self.gpsfix.longitude = geod.lambert2latlon(msg.pose.position.x, msg.pose.position.y)
+        self.gpsfix.latitude, self.gpsfix.longitude = geod.meters2latlon(msg.pose.position.x, msg.pose.position.y)
+        # self.gpsfix.latitude += self.lat_offset
+        # self.gpsfix.longitude += self.lon_offset
+        # self.gpsfix.latitude *= 180.0/np.pi # Passage en degrés
+        # self.gpsfix.longitude *= 180.0/np.pi # Passage en degrés
         self.gpsfix.altitude = 0.0
 
     def update_twist(self, msg):

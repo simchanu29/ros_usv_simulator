@@ -44,7 +44,7 @@ class SimPWMBoard():
         pin = int(msg.pin)
         # Gère les messages entre -100 et 100
         if np.abs(msg.command)>100.0:
-            msg.command = 0.0
+            msg.command = np.clip(msg.command, -100.0, 100.0)
         self.out_tab[pin].publish(msg.command/2.0*10+1500)
 
 

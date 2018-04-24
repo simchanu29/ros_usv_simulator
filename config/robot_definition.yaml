@@ -29,7 +29,7 @@ device_types:
     baudrate: 9600
 
   pwm_board:
-    node_type: 'simu_pwm_board.py'
+    node_type: 'simu_maestro.py'
     output_number: 24
 
   not_simulated: 'None'
@@ -40,6 +40,9 @@ simulation:
   duration: 100000
   environnement:
     fluid_mass_density: 1000 # kg/m3
+    authorized_zone:
+      x: [-50, 50, 50,-50]
+      y: [-50,-50, 50, 50]
 
 #==========================================================
 # Config du robot
@@ -48,9 +51,12 @@ robot:
 
   simulated_characteristics:
     position:
+      gps_lat: 48.33489
+      gps_lon: -4.36421
       x: 0.0
       y: 0.0
       z: 0.0
+    orientation:
       roll: 0.0
       pitch: 0.0
       yaw: 0.0
@@ -81,7 +87,7 @@ robot:
       orientation: 0
       position:
         x: -0.5
-        y: -0.4
+        y: 0.4
         z: 0.0
 
     motor_right:
@@ -93,7 +99,7 @@ robot:
       orientation: 0
       position:
         x: -0.5
-        y: 0.4
+        y: -0.4
         z: 0.0
 
     servo_cam_azimuth:

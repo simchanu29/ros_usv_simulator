@@ -58,9 +58,9 @@ class USV_char():
         self.x = config_simu['position']['x']
         self.y = config_simu['position']['y']
         self.z = config_simu['position']['z']
-        self.roll = config_simu['position']['roll']
-        self.pitch = config_simu['position']['pitch']
-        self.yaw = config_simu['position']['yaw']
+        self.roll = config_simu['orientation']['roll']
+        self.pitch = config_simu['orientation']['pitch']
+        self.yaw = config_simu['orientation']['yaw']
         self.v_x = config_simu['speed']['v_x']
         self.v_y = config_simu['speed']['v_y']
         self.v_z = config_simu['speed']['v_z']
@@ -95,62 +95,62 @@ class USV_char():
         # Vitesse dans le repère global
         self.v = np.array([self.v_x, self.v_y, 0.0])  # m/s
 
-class Buggy():
-    """
-    Ground vehicule
-    """
-    def __init__(self, config_vehicule, config_simu, actuators, environnement):
-        print 'config_vehicule :', config_vehicule
-        print 'config_simu :', config_simu
-        print 'actuators :', actuators
-        print 'environnement :', environnement
-        massDensityOfFluid = environnement['fluid_mass_density']
-        dragCoeff = 0.5
-        dragAngCoeff = 0.3
-        minForceToMove = 2.0
-        electromechanicBrakingTorque = 1.0
-
-        # Init dans le repere global
-        self.x = config_simu['position']['x']
-        self.y = config_simu['position']['y']
-        self.z = config_simu['position']['z']
-        self.roll = config_simu['position']['roll']
-        self.pitch = config_simu['position']['pitch']
-        self.yaw = config_simu['position']['yaw']
-        self.v_x = config_simu['speed']['v_x']
-        self.v_y = config_simu['speed']['v_y']
-        self.v_z = config_simu['speed']['v_z']
-        self.v_roll = config_simu['speed']['v_roll']
-        self.v_pitch = config_simu['speed']['v_pitch']
-        self.v_yaw = config_simu['speed']['v_yaw']
-
-        self.mass = config_vehicule['mass']  # kg
-        self.length = config_vehicule['length']  # m
-        self.width = config_vehicule['width']  # m
-        self.height = config_vehicule['height']  # m
-
-        # Matric d'inertie simplifiée
-        self.angularMass = (self.mass * (self.length * self.width) ** 2) / 12.0 # Parallepipède rectangle
-
-        # On a une commande char avec plusieurs moteurs, donc une force de friction par moteur
-        # drag = résistance de l'air + frottement des roues
-        # TODO generaliser les equations avec des matrices
-        self.dragX = 0.5 * massDensityOfFluid * self.height * self.width * dragCoeff
-        self.dragY = 0.5 * massDensityOfFluid * self.height * self.length * dragCoeff
-        self.dragAng = 0.5 * massDensityOfFluid * self.height * self.length / 2.0 * dragAngCoeff * self.length / 4.0
-        for motor in actuators:
-            if actuators[motor]['type'] != 'None':
-                print 'motor :', motor
-                dist2center = (actuators[motor]['position']['x']**2
-                               + actuators[motor]['position']['y']**2
-                               + actuators[motor]['position']['z']**2)**0.5
-
-                # Force résistante à l'avancement engendré par l'applatissement des roues sur le sol.
-                self.drag += self.mass*actuators[motor]['type']['kinetic_friction_coeff']*9.81
-                self.dragAng += self.mass*actuators[motor]['type']['kinetic_friction_coeff']*9.81 * dist2center
-
-        self.pos = np.array([self.x, self.y, 0.0])  # m
-        self.v = np.array([self.v_x, self.v_y, 0.0])  # m/s
+# class Buggy():
+    # """
+    # Ground vehicule
+    # """
+    # def __init__(self, config_vehicule, config_simu, actuators, environnement):
+    #     print 'config_vehicule :', config_vehicule
+    #     print 'config_simu :', config_simu
+    #     print 'actuators :', actuators
+    #     print 'environnement :', environnement
+    #     massDensityOfFluid = environnement['fluid_mass_density']
+    #     dragCoeff = 0.5
+    #     dragAngCoeff = 0.3
+    #     minForceToMove = 2.0
+    #     electromechanicBrakingTorque = 1.0
+    #
+    #     # Init dans le repere global
+    #     self.x = config_simu['position']['x']
+    #     self.y = config_simu['position']['y']
+    #     self.z = config_simu['position']['z']
+    #     self.roll = config_simu['position']['roll']
+    #     self.pitch = config_simu['position']['pitch']
+    #     self.yaw = config_simu['position']['yaw']
+    #     self.v_x = config_simu['speed']['v_x']
+    #     self.v_y = config_simu['speed']['v_y']
+    #     self.v_z = config_simu['speed']['v_z']
+    #     self.v_roll = config_simu['speed']['v_roll']
+    #     self.v_pitch = config_simu['speed']['v_pitch']
+    #     self.v_yaw = config_simu['speed']['v_yaw']
+    #
+    #     self.mass = config_vehicule['mass']  # kg
+    #     self.length = config_vehicule['length']  # m
+    #     self.width = config_vehicule['width']  # m
+    #     self.height = config_vehicule['height']  # m
+    #
+    #     # Matric d'inertie simplifiée
+    #     self.angularMass = (self.mass * (self.length * self.width) ** 2) / 12.0 # Parallepipède rectangle
+    #
+    #     # On a une commande char avec plusieurs moteurs, donc une force de friction par moteur
+    #     # drag = résistance de l'air + frottement des roues
+    #     # TODO generaliser les equations avec des matrices
+    #     self.dragX = 0.5 * massDensityOfFluid * self.height * self.width * dragCoeff
+    #     self.dragY = 0.5 * massDensityOfFluid * self.height * self.length * dragCoeff
+    #     self.dragAng = 0.5 * massDensityOfFluid * self.height * self.length / 2.0 * dragAngCoeff * self.length / 4.0
+    #     for motor in actuators:
+    #         if actuators[motor]['type'] != 'None':
+    #             print 'motor :', motor
+    #             dist2center = (actuators[motor]['position']['x']**2
+    #                            + actuators[motor]['position']['y']**2
+    #                            + actuators[motor]['position']['z']**2)**0.5
+    #
+    #             # Force résistante à l'avancement engendré par l'applatissement des roues sur le sol.
+    #             self.drag += self.mass*actuators[motor]['type']['kinetic_friction_coeff']*9.81
+    #             self.dragAng += self.mass*actuators[motor]['type']['kinetic_friction_coeff']*9.81 * dist2center
+    #
+    #     self.pos = np.array([self.x, self.y, 0.0])  # m
+    #     self.v = np.array([self.v_x, self.v_y, 0.0])  # m/s
 
 class SimVehicule():
     def __init__(self):
