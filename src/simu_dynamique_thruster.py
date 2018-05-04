@@ -9,7 +9,7 @@
 
 import rospy
 import numpy as np
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Float32
 from geometry_msgs.msg import WrenchStamped
 from geometry_msgs.msg import Quaternion
 import tf
@@ -30,6 +30,8 @@ class SimDynMot():
         self.orientation.w = quaternion[3]
 
         self.wrenchThruster = WrenchStamped()
+        self.power_load = 0.0  # W
+        self.voltage = 0.0  # V
 
     def update_orientation(self, msg):
         self.orientation = msg
@@ -38,13 +40,25 @@ class SimDynMot():
         self.cmd_thrust = msg.data
         self.process()
 
+    def update_voltage(self, msg):
+        self.voltage = msg.data
+
     def process_force(self, commande):
         # La commande est de -1 à 1
         # Pour les moteurs on est habituellement sur une courbe quadratique de puissance
-        y = 0.1
-        thrust = self.config['type']['max_force']*(y*commande**2 + (1-y)*commande)
+        y = 0.3
+        thrust = self.config['type']['max_force']*(y*np.sign(commande)*commande**2 + (1-y)*commande)
 
         return thrust
+
+    def process_power_load(self, commande):
+
+        # Mesures empiriques
+        y = 0.1
+        gain_power = self.config['type']['gain_power_tension']*self.voltage + self.config['type']['offset_power_tension']
+        power = gain_power*(y*commande**2 + (1-y)*abs(commande))
+
+        return power
 
     def process(self):
         # Traduction pwm->[-1;1]
@@ -69,7 +83,11 @@ class SimDynMot():
         self.wrenchThruster.wrench.torque.z = self.wrenchThruster.wrench.force.y*self.config['position']['x'] \
                                             + self.wrenchThruster.wrench.force.x*self.config['position']['y']
 
+        # Calcul de la puissance demandee par les moteurs
+        power_load = self.process_power_load(cmd_thrust)
+
         pub_force.publish(self.wrenchThruster)
+        pub_power_load.publish(power_load)
 
 
 if __name__ == '__main__':
@@ -77,20 +95,25 @@ if __name__ == '__main__':
 
     # === COMMON ===
 
-    # La node doit se lancer en sachant où chercher sa config. Le nom du noeud est géré par le launcher
+    # Necessite le formalisme de configuration de ros_usv_simulator
+
+    # La node doit se lancer en sachant où chercher sa config
     node_name = rospy.get_name()
-    device_type_name = rospy.get_param(node_name+'_type_name')
+    device_type_name = rospy.get_param(node_name + '_type_name')
 
     # Config
     ns = rospy.get_namespace()
     nslen = len(ns)
-    prefix_len = nslen + 5 # On enlève le namespace et simu_
-    config_node = rospy.get_param('robot/'+device_type_name+'/'+node_name[prefix_len:])
+    prefix_len = nslen + 5  # On enlève le namespace et simu_
+    reduced_node_name = node_name[prefix_len:]
+    config_node = rospy.get_param('robot/' + device_type_name + '/' + reduced_node_name)
+    print 'CONFIG NODE '+reduced_node_name
     print config_node
 
     # Pas sur qu'on en ai besoin mais au cas où
     device_type = config_node['type']
-    config_device = rospy.get_param('device_types/'+device_type)
+    config_device = rospy.get_param('device_types/' + device_type)
+    print 'CONFIG DEVICE '+reduced_node_name
     print config_device
 
     # === SPECIFIC ===
@@ -106,6 +129,8 @@ if __name__ == '__main__':
     # sub pub
     sub_yaw = rospy.Subscriber('orientation', Quaternion, simu.update_orientation) # Eventuellement la node qui est l'actionneur placé avant le moteur a son propre temps. Ou sinon il y a une node qui donne le temps et qui synchronise les simulation (mieux)
     sub_pwm_cmd = rospy.Subscriber('pwm_out_'+str(pin), Int16, simu.update_cmd_thrust)
-    pub_force = rospy.Publisher('force_'+node_name[prefix_len:], WrenchStamped, queue_size=1)
+    sub_voltage = rospy.Subscriber(reduced_node_name+'_voltage', Float32, simu.update_voltage)
+    pub_force = rospy.Publisher('force_'+reduced_node_name, WrenchStamped, queue_size=1)
+    pub_power_load = rospy.Publisher(reduced_node_name+'_power_load', Float32, queue_size=1)
 
     rospy.spin()

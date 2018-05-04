@@ -1,48 +1,63 @@
 # Config du simulateur
 
-command_types:
-
-  'servo180':
-    range: [-90,90]
-
-  'servo90':
-    range: [-45,45]
-
-  'motor100':
-    range: [-100,100]
-
 device_types:
 
   motor_helios:
+    node_package: 'ros_usv_simulator'
     node_type: 'simu_dynamique_thruster.py'
     motor_type: 'propeller' # Or propeller
-    max_force: 5
+    max_force: 5 # N
+    gain_power_tension: 45 # W/V
+    offset_power_tension: -360 # W
     orientable: False
-    pre_actuator: True
+    pre_actuator: True # non utilisé
 
   imu_razor:
+    node_package: 'ros_usv_simulator'
     node_type: 'simu_imu.py'
-    baudrate: 57600
+    baudrate: 57600 # bps
 
   gps_globalsat_usb:
+    node_package: 'ros_usv_simulator'
     node_type: 'simu_gps.py'
-    baudrate: 9600
+    baudrate: 9600 # bps
 
-  pwm_board:
+  pololu_maestro:
+    # Sa config est associée au package ros_maestro
+    node_package: 'ros_maestro'
     node_type: 'simu_maestro.py'
-    output_number: 24
+
+  attopilot:
+    node_package: 'ros_usv_simulator'
+    node_type: 'simu_attopilot.py'
+    current_gain: 13.89
+    voltage_gain: 49
+
+  battery_lion_24v:
+    node_package: 'ros_usv_simulator'
+    node_type: 'simu_batterie.py'
+    max_voltage: 25.2 # V
+    min_voltage: 18.0 # V
+    max_energy: 20 # Ah
+
+  power_distribution:
+    node_package: 'ros_usv_simulator'
+    node_type: 'simu_power_distribution.py'
 
   not_simulated: 'None'
 
 simulation:
-  dt: 0.05
-  dt_reel: 0.05
-  duration: 100000
+  dt: 0.05 # s | durée du pas interne de la simulation, supérieur à 0.1 ça crée des divergences
+  dt_reel: 0.05 # s | cadencement réel des noeuds de sumilation
+  duration: 100000 # s | durée de la simulation
   environnement:
     fluid_mass_density: 1000 # kg/m3
+    current: # Pas encore implémenté
+      x_force: 0.0 # N
+      y_force: 0.0 # N
     authorized_zone:
-      x: [-50, 50, 50,-50]
-      y: [-50,-50, 50, 50]
+      x: [-50, 50, 50,-50] # m
+      y: [-50,-50, 50, 50] # m
 
 #==========================================================
 # Config du robot
@@ -51,28 +66,28 @@ robot:
 
   simulated_characteristics:
     position:
-      gps_lat: 48.33489
-      gps_lon: -4.36421
-      x: 0.0
-      y: 0.0
+      gps_lat: 48.33489 # deg
+      gps_lon: -4.36421 # deg
+      x: 398898 # m utm
+      y: 5354422 # m utm
       z: 0.0
     orientation:
       roll: 0.0
       pitch: 0.0
       yaw: 0.0
     speed:
-      v_x: 0.0
-      v_y: 0.0
-      v_z: 0.0
+      v_x: 0.0 # m/s
+      v_y: 0.0 # m/s
+      v_z: 0.0 # m/s
       v_roll: 0.0
       v_pitch: 0.0
       v_yaw: 0.0
 
   characteristics:
     axis_offset: [0,0,0]
-    length: 1.2
-    height: 0.3
-    width: 0.6
+    length: 1.2 # m
+    height: 0.3 # m
+    width: 0.6 # m
     mass: 20.0 # kg
     # TODO : intertial_matrix: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
@@ -86,9 +101,9 @@ robot:
           pin: 0
       orientation: 0
       position:
-        x: -0.5
-        y: 0.4
-        z: 0.0
+        x: -0.5 # m
+        y: -0.4 # m
+        z: 0.0 # m
 
     motor_right:
       type: 'motor_helios'
@@ -98,31 +113,38 @@ robot:
           pin: 1
       orientation: 0
       position:
-        x: -0.5
-        y: -0.4
-        z: 0.0
+        x: -0.5 # m
+        y: 0.4 # m
+        z: 0.0 # m
 
-    servo_cam_azimuth:
-      type: 'not_simulated'
-      command:
-        type: 'servo90'
-        pwm:
-          pin: 10
-
-    servo_cam_declinaison:
-      type: 'not_simulated'
-      command:
-        type: 'servo90'
-        pwm:
-          pin: 11
-
-  pre_actuators:
-
-    maestro:
-      type: 'pwm_board'
+  pre_actuators: False
+    # Necessite le package ros_maestro
+#    maestro:
+#      type: 'pololu_maestro'
+#      config_path: 'config/'
 
   sensors:
     imu:
       type: 'imu_razor'
     gps:
       type: 'gps_globalsat_usb'
+    attopilot1:
+      type: 'attopilot'
+      battery: 'battery1'
+    attopilot2:
+      type: 'attopilot'
+      battery: 'battery2'
+
+  power_source:
+    battery1:
+      type: 'battery_lion_24v'
+      start_voltage: 25 # V
+    battery2:
+      type: 'battery_lion_24v'
+      start_voltage: 25 # V
+
+  other:
+    power_distribution:
+      type: 'power_distribution'
+      max_current: 30 # A
+      resistance: 0.5 # Ohm

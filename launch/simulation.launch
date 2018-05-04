@@ -10,7 +10,8 @@
         <!-- Le fichier de config sera passé à toutes les nodes créées par le launcher -->
 
         <!-- Pour modifier le lancement des nodes il faut modifier la définition du robot -->
-        <node pkg="ros_usv_simulator" type="launch_simulation.py" name="sim_launcher">
+        <!--output="screen"-->
+        <node pkg="ros_usv_simulator" type="launch_simulation.py" name="sim_launcher" output="screen">
             <param name="namespace_simu" value="$(arg ns)"/>
         </node>
 

@@ -13,7 +13,6 @@ project(ros_usv_simulator)
 #   rospy
 # )
 find_package(catkin REQUIRED COMPONENTS
-  ros_maestro
   roscpp
   rospy
 )
