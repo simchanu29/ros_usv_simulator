@@ -36,13 +36,9 @@ def dist_m(x1, y1, x2, y2):
     return np.sqrt((x2-x1)**2 + (y2-y1)**2)
 
 def meters2latlon(x, y):
-    UTM30N(x, y, inverse=True)
-    lon = x
-    lat = y
+    lon, lat = UTM30N(x, y, inverse=True)
     return lat, lon
 
 def latlon2meters(lat, lon):
-    UTM30N(lon, lat)
-    x = lon
-    y = lat
+    x, y = UTM30N(lon, lat)
     return x, y

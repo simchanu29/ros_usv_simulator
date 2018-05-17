@@ -131,9 +131,15 @@ robot:
     attopilot1:
       type: 'attopilot'
       battery: 'battery1'
+      pwm:
+        pin_voltage: 8
+        pin_current: 9
     attopilot2:
       type: 'attopilot'
       battery: 'battery2'
+      pwm:
+        pin_voltage: 10
+        pin_current: 11
 
   power_source:
     battery1:

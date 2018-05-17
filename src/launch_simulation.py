@@ -16,7 +16,7 @@ launch = roslaunch.scriptapi.ROSLaunch()
 launch.start()
 param_server = rosparam.get_param_server()
 namespace_simu = rospy.get_param("~namespace_simu", "/")
-output_node_name = "simu_battery1"  # name of the node logged on screen
+output_node_name = "simu_maestro"  # name of the node logged on screen
 output = None  # init global var
 process_dic = {}
 device_type_names = ['sensors', 'actuators', 'pre_actuators', 'power_source', 'other']

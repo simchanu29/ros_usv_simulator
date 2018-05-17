@@ -10,11 +10,11 @@ from std_msgs.msg import Float32, Int16
 
 
 def cb_voltage(msg):
-    pub_voltage.publish(int(msg.data*voltage_gain))
+    pub_voltage.publish(msg.data*voltage_gain)
 
 
 def cb_current(msg):
-    pub_current.publish(int(msg.data*voltage_gain))
+    pub_current.publish(msg.data*current_gain)
 
 
 if __name__ == '__main__':
@@ -45,18 +45,21 @@ if __name__ == '__main__':
 
     # === SPECIFIC ===
 
-    voltage_gain = config_device['voltage_gain']
-    current_gain = config_device['current_gain']
+    voltage_gain = float(config_device['voltage_gain'])
+    current_gain = float(config_device['current_gain'])
     battery_name = config_node['battery']
+
+    pin_voltage = config_node['pwm']['pin_voltage']
+    pin_current = config_node['pwm']['pin_current']
 
     sub_name_voltage = rospy.get_param('~sub_voltage', default=str(battery_name)+'_voltage_real')
     sub_name_current = rospy.get_param('~sub_current', default=str(battery_name)+'_current_real')
-    pub_name_voltage = rospy.get_param('~pub_voltage', default=str(battery_name)+'_voltage_raw')
-    pub_name_current = rospy.get_param('~pub_current', default=str(battery_name)+'_current_raw')
+    pub_name_voltage = rospy.get_param('~pub_voltage', default='pwm_in_'+str(pin_voltage))
+    pub_name_current = rospy.get_param('~pub_current', default='pwm_in_'+str(pin_current))
 
     sub_voltage = rospy.Subscriber(sub_name_voltage, Float32, cb_voltage)
     sub_current = rospy.Subscriber(sub_name_current, Float32, cb_current)
-    pub_voltage = rospy.Publisher(pub_name_voltage, Int16, queue_size=1)
-    pub_current = rospy.Publisher(pub_name_current, Int16, queue_size=1)
+    pub_voltage = rospy.Publisher(pub_name_voltage, Float32, queue_size=1)
+    pub_current = rospy.Publisher(pub_name_current, Float32, queue_size=1)
 
     rospy.spin()

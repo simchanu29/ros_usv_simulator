@@ -27,8 +27,8 @@ class Plotter():
         # Gestion de l'offset à cause de l'UTM : le zero de l'affichage sera le point gps indiqué
         x, y = geod.latlon2meters(float(config['simulated_characteristics']['position']['gps_lon']),
                                   float(config['simulated_characteristics']['position']['gps_lat']))
-        self.x_offset = x
-        self.y_offset = y
+        self.x_offset = 0.0  # désactivé
+        self.y_offset = 0.0  # désactivé
 
         self.x = float(config['simulated_characteristics']['position']['x']) - self.x_offset
         self.y = float(config['simulated_characteristics']['position']['y']) - self.y_offset
@@ -39,7 +39,7 @@ class Plotter():
         self.win = plt.GraphicsWindow()
         self.fig = self.win.addPlot(title="Display simu")
         self.fig.setXRange(self.x-5, self.x+5)
-        self.fig.setYRange(self.y-5, self.x+5)
+        self.fig.setYRange(self.y-5, self.y+5)
         self.plt_boat = self.fig.plot()
         self.plt_zone = self.fig.plot()
 
@@ -50,7 +50,9 @@ class Plotter():
 
         self.trace = [[], [], []]
 
-        self.plt_zone.setData(env['environnement']['authorized_zone']['x'],env['environnement']['authorized_zone']['y'], pen=plt.mkPen('g'))
+        self.authorized_zone_x = np.array(env['environnement']['authorized_zone']['x_offset']) + env['environnement']['authorized_zone']['x_origin']
+        self.authorized_zone_y = np.array(env['environnement']['authorized_zone']['y_offset']) + env['environnement']['authorized_zone']['y_origin']
+        self.plt_zone.setData(self.authorized_zone_x, self.authorized_zone_y, pen=plt.mkPen('g'))
 
     def update_motor(self, msg, motor):
         self.motors[motor]['thrust'] = msg.data
