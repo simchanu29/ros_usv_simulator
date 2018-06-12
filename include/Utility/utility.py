@@ -44,3 +44,7 @@ def get_head_from_pose(pose):
     )
     euler = tf.transformations.euler_from_quaternion(quaternion)
     return euler[2]
+
+def invQuatRotateVector3(rotation, vector3):
+
+    return

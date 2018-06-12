@@ -40,11 +40,13 @@ class Plotter():
         self.fig = self.win.addPlot(title="Display simu")
         self.fig.setXRange(self.x-5, self.x+5)
         self.fig.setYRange(self.y-5, self.y+5)
-        self.plt_boat = self.fig.plot()
-        self.plt_zone = self.fig.plot()
 
         # Init trace
         self.plt_trace = self.fig.plot()
+
+        self.plt_boat = self.fig.plot()
+        self.plt_zone = self.fig.plot()
+
         # Init twist
         self.plt_twist = self.fig.plot()
 

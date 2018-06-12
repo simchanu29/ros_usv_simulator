@@ -39,6 +39,14 @@ class SimGPS():
         self.lat_offset = 48.5
 
     def update_pose(self, msg):
+        # Randomize
+        # Gaussian noise
+        hdop = 1  # m
+        noise = np.random.normal(0, hdop, 2)
+        msg.pose.position.x += noise[0]
+        msg.pose.position.y += noise[1]
+
+        # Convert
         self.gpsfix.header = msg.header
         self.gpsfix.latitude, self.gpsfix.longitude = geod.meters2latlon(msg.pose.position.x, msg.pose.position.y)
         # self.gpsfix.latitude += self.lat_offset

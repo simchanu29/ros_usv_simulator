@@ -165,10 +165,19 @@ class SimVehicule():
         self.msgTwist = Msg(TwistStamped)
         self.msgAccel = Msg(AccelStamped)
 
-        self.constraints = {}
+        self.constraints = {
+            'wind': WrenchStamped(),
+            'current': WrenchStamped()
+        }
 
     def update_wrench(self, msg, motor):
         self.constraints[motor] = msg
+
+    def update_wind(self, msg):
+        self.constraints['wind'] = msg
+
+    def update_current(self, msg):
+        self.constraints['current'] = msg
 
     def update_dt(self, msg):
         simu.process(msg.data)
@@ -180,8 +189,11 @@ class SimVehicule():
         # Somme des contraintes
         sumForce = np.array([0.0, 0.0, 0.0])
         sumMoment = np.array([0.0, 0.0, 0.0])
+
+        # Contraintes moteur dans le repère du vehicule
+
+        # Motors
         for constraint in self.constraints:
-            # Contraintes dans le repère du vehicule
             sumForce[0] += self.constraints[constraint].wrench.force.x
             sumForce[1] += self.constraints[constraint].wrench.force.y
             sumForce[2] += self.constraints[constraint].wrench.force.z
@@ -199,6 +211,15 @@ class SimVehicule():
                         [np.sin(rotAngle), np.cos(rotAngle), 0.0],
                         [0.0, 0.0, 1.0]])
         sumForce = Rot.dot(sumForce)
+
+        # Wind repère global
+        sumForce[0] += self.constraints['wind'].wrench.force.x
+        sumForce[1] += self.constraints['wind'].wrench.force.y
+        sumForce[2] += self.constraints['wind'].wrench.force.z
+        # Current repère global
+        sumForce[0] += self.constraints['current'].wrench.force.x
+        sumForce[1] += self.constraints['current'].wrench.force.y
+        sumForce[2] += self.constraints['current'].wrench.force.z
 
         # Rotation des vitesse vers le repère vehicule
         rotAngle = -self.vehicule.yaw
@@ -278,9 +299,9 @@ class SimVehicule():
         rospy.loginfo("G pos          = %s", self.vehicule.pos)
 
         # Remplissage des header pour la simulation
-        self.msgPose.fill_header(frame_id='map')
-        self.msgTwist.fill_header(frame_id='map')
-        self.msgAccel.fill_header(frame_id='map')
+        self.msgPose.fill_header(frame_id='global')
+        self.msgTwist.fill_header(frame_id='global')
+        self.msgAccel.fill_header(frame_id='global')
 
         # Publication
         pub_pose.publish(self.msgPose)
@@ -304,6 +325,8 @@ if __name__ == '__main__':
     pub_pose = rospy.Publisher('pose_real', PoseStamped, queue_size=1)
     pub_twist = rospy.Publisher('twist_real', TwistStamped, queue_size=1)
     pub_acc = rospy.Publisher('accel_real', AccelStamped, queue_size=1)
+    sub_wind = rospy.Subscriber('force_wind', WrenchStamped, simu.update_wind)
+    sub_current = rospy.Subscriber('force_current', WrenchStamped, simu.update_current)
     for motor in config['actuators']:
         if config['actuators'][motor]['type'] != 'None':
 
