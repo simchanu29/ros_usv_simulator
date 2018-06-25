@@ -41,10 +41,10 @@ class SimGPS():
     def update_pose(self, msg):
         # Randomize
         # Gaussian noise
-        hdop = 1  # m
-        noise = np.random.normal(0, hdop, 2)
-        msg.pose.position.x += noise[0]
-        msg.pose.position.y += noise[1]
+        # hdop = 0.5  # m
+        # noise = np.random.normal(0, hdop, 2)
+        # msg.pose.position.x += noise[0]
+        # msg.pose.position.y += noise[1]
 
         # Convert
         self.gpsfix.header = msg.header
